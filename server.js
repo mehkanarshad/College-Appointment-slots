@@ -1,19 +1,22 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const cors = require('cors');
+const express = require("express");
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+const cors = require("cors");
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('API is running...');
+app.get("/", (req, res) => {
+  res.send("API is running...");
 });
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
-
+const authRoutes = require("./routes/auth");
+app.use("/api/auth", authRoutes);
+const availabilityRoutes = require("./routes/availability");
+app.use("/api/availability", availabilityRoutes);
+const appointmentRoutes = require("./routes/appointments");
+app.use("/api/appointments", appointmentRoutes);
 
 const PORT = process.env.PORT || 5000;
 
