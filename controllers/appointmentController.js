@@ -1,24 +1,34 @@
-const Appointment = require('../models/Appointment');
-const Availability = require('../models/Availability');
+const Appointment = require("../models/Appointment");
+const Availability = require("../models/Availability");
 
 const bookAppointment = async (req, res) => {
   const { professorId, date, timeSlot } = req.body;
   const studentId = req.user.id;
 
-  if (req.user.role !== 'student') {
-    return res.status(403).json({ message: 'Only students can book appointments' });
+  if (req.user.role !== "student") {
+    return res
+      .status(403)
+      .json({ message: "Only students can book appointments" });
   }
 
   try {
-    const availability = await Availability.findOne({ professor: professorId, date });
+    const availability = await Availability.findOne({
+      professor: professorId,
+      date,
+    });
 
     if (!availability || !availability.timeSlots.includes(timeSlot)) {
-      return res.status(400).json({ message: 'Time slot not available' });
+      return res.status(400).json({ message: "Time slot not available" });
     }
 
-    const conflict = await Appointment.findOne({ professor: professorId, date, timeSlot, status: 'booked' });
+    const conflict = await Appointment.findOne({
+      professor: professorId,
+      date,
+      timeSlot,
+      status: "booked",
+    });
     if (conflict) {
-      return res.status(400).json({ message: 'Slot already booked' });
+      return res.status(400).json({ message: "Slot already booked" });
     }
 
     const appointment = await Appointment.create({
@@ -28,10 +38,12 @@ const bookAppointment = async (req, res) => {
       timeSlot,
     });
 
-    availability.timeSlots = availability.timeSlots.filter(slot => slot !== timeSlot);
+    availability.timeSlots = availability.timeSlots.filter(
+      (slot) => slot !== timeSlot
+    );
     await availability.save();
 
-    res.status(201).json({ message: 'Appointment booked', appointment });
+    res.status(201).json({ message: "Appointment booked", appointment });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -42,15 +54,17 @@ const getMyAppointments = async (req, res) => {
   const role = req.user.role;
   const statusFilter = req.query.status;
 
-  const query = role === 'student'
-    ? { student: userId }
-    : { professor: userId };
+  const query =
+    role === "student" ? { student: userId } : { professor: userId };
 
   if (statusFilter) {
     query.status = statusFilter;
   }
 
-  const appointments = await Appointment.find(query).populate('professor', 'name email');
+  const appointments = await Appointment.find(query).populate(
+    "professor",
+    "name email"
+  );
   res.json(appointments);
 };
 
@@ -58,28 +72,35 @@ const cancelAppointment = async (req, res) => {
   const { appointmentId } = req.params;
   const professorId = req.user.id;
 
-  if (req.user.role !== 'professor') {
-    return res.status(403).json({ message: 'Only professors can cancel appointments' });
+  if (req.user.role !== "professor") {
+    return res
+      .status(403)
+      .json({ message: "Only professors can cancel appointments" });
   }
 
   try {
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
-      return res.status(404).json({ message: 'Appointment not found' });
+      return res.status(404).json({ message: "Appointment not found" });
     }
 
     if (appointment.professor.toString() !== professorId) {
-      return res.status(403).json({ message: 'You can only cancel your own appointments' });
+      return res
+        .status(403)
+        .json({ message: "You can only cancel your own appointments" });
     }
 
-    if (appointment.status === 'cancelled') {
-      return res.status(400).json({ message: 'Appointment already cancelled' });
+    if (appointment.status === "cancelled") {
+      return res.status(400).json({ message: "Appointment already cancelled" });
     }
 
-    appointment.status = 'cancelled';
+    appointment.status = "cancelled";
     await appointment.save();
 
-    const availability = await Availability.findOne({ professor: professorId, date: appointment.date });
+    const availability = await Availability.findOne({
+      professor: new mongoose.Types.ObjectId(professorId),
+      date,
+    });
 
     if (availability) {
       if (!availability.timeSlots.includes(appointment.timeSlot)) {
@@ -95,11 +116,10 @@ const cancelAppointment = async (req, res) => {
       });
     }
 
-    res.json({ message: 'Appointment cancelled', appointment });
+    res.json({ message: "Appointment cancelled", appointment });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-
-module.exports = { bookAppointment, getMyAppointments ,cancelAppointment };
+module.exports = { bookAppointment, getMyAppointments, cancelAppointment };
