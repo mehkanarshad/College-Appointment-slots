@@ -1,5 +1,6 @@
 const Appointment = require("../models/Appointment");
 const Availability = require("../models/Availability");
+const mongoose = require("mongoose");
 
 const bookAppointment = async (req, res) => {
   const { professorId, date, timeSlot } = req.body;
@@ -69,52 +70,35 @@ const getMyAppointments = async (req, res) => {
 };
 
 const cancelAppointment = async (req, res) => {
-  const { appointmentId } = req.params;
-  const professorId = req.user.id;
-
-  if (req.user.role !== "professor") {
+  if (req.user.role !== "professor")
     return res
       .status(403)
       .json({ message: "Only professors can cancel appointments" });
-  }
+
+  const { appointmentId } = req.params;
+  const professorId = req.user.id;
 
   try {
     const appointment = await Appointment.findById(appointmentId);
-    if (!appointment) {
+    if (!appointment)
       return res.status(404).json({ message: "Appointment not found" });
-    }
 
-    if (appointment.professor.toString() !== professorId) {
+    if (appointment.professor.toString() !== professorId)
       return res
         .status(403)
         .json({ message: "You can only cancel your own appointments" });
-    }
 
-    if (appointment.status === "cancelled") {
+    if (appointment.status !== "booked")
       return res.status(400).json({ message: "Appointment already cancelled" });
-    }
 
     appointment.status = "cancelled";
     await appointment.save();
 
-    const availability = await Availability.findOne({
-      professor: new mongoose.Types.ObjectId(professorId),
-      date,
-    });
-
-    if (availability) {
-      if (!availability.timeSlots.includes(appointment.timeSlot)) {
-        availability.timeSlots.push(appointment.timeSlot);
-        availability.timeSlots.sort();
-        await availability.save();
-      }
-    } else {
-      await Availability.create({
-        professor: professorId,
-        date: appointment.date,
-        timeSlots: [appointment.timeSlot],
-      });
-    }
+    await Availability.findOneAndUpdate(
+      { professor: appointment.professor, date: appointment.date },
+      { $addToSet: { timeSlots: appointment.timeSlot } },
+      { upsert: true }
+    );
 
     res.json({ message: "Appointment cancelled", appointment });
   } catch (err) {
