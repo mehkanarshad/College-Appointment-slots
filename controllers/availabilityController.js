@@ -1,4 +1,5 @@
 const Availability = require('../models/Availability');
+const TIME_SLOT_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const addAvailability = async (req, res) => {
   const { date, timeSlots } = req.body;
@@ -7,6 +8,12 @@ const addAvailability = async (req, res) => {
   if (req.user.role !== 'professor') {
     return res.status(403).json({ message: 'Only professors can add availability' });
   }
+
+  if (!Array.isArray(timeSlots) || !timeSlots.every(s => TIME_SLOT_REGEX.test(s))) {
+  return res.status(400).json({
+    message: "Invalid time slot format: use HH:MM (e.g. '09:00', '14:30')."
+  });
+}
 
   try {
     let availability = await Availability.findOne({ professor: professorId, date });
